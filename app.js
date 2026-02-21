@@ -14,10 +14,12 @@ createApp({
             dataFiltro: new Date().toISOString().split('T')[0],
             textoTemporario: '', novoAlunoNome: '',
             alunoEditando: null, alunoPerfil: null, relIndividual: { p: 0, f: 0 },
-            titulos: { home: 'Diário de Classe', chamada: 'Frequência', filtro: 'Relatórios', gestaoAlunos: 'Turma', gerenciarProfessores: 'Diretoria', cadastrarProfessor: 'Novo Docente' },
+            titulos: { home: 'Diário de Classe', chamada: 'Frequência', filtro: 'Relatórios', gestaoAlunos: 'Turma', gestaoProfessores: 'Diretoria', cadastrarProfessor: 'Novo Docente', professoresExistentes: 'Corpo Docente', editarProfessor: 'Editar Docente', dadosProfessor: 'Perfil do Docente' },
             alunos: [], historico: [], anotacoes: {}, professores: [],
             novoProfessorEmail: '', novoProfessorSenha: '', novoProfessorNome: '', novoProfessorDataNasc: '', novoProfessorMatricula: '', novoProfessorTelefone: '',
-            cadastroProfessorSucesso: false
+            novoProfessorRole: 'professor',
+            cadastroProfessorSucesso: false,
+            professorEditando: null, professorPerfil: null
         }
     },
     computed: {
@@ -127,7 +129,7 @@ createApp({
                 nascimento: this.novoProfessorDataNasc,
                 matricula: this.novoProfessorMatricula,
                 telefone: this.novoProfessorTelefone,
-                role: 'professor'
+                role: this.novoProfessorRole
             });
             this.salvarNoLocalStorage();
 
@@ -137,6 +139,7 @@ createApp({
             this.novoProfessorDataNasc = '';
             this.novoProfessorMatricula = '';
             this.novoProfessorTelefone = '';
+            this.novoProfessorRole = 'professor';
             this.cadastroProfessorSucesso = true;
         },
         formatarData(d) { if (!d) return ""; const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; },
@@ -161,6 +164,38 @@ createApp({
             this.relIndividual.p = this.historico.filter(h => h.alunoId === aluno.id && h.status === 'P').length;
             this.relIndividual.f = this.historico.filter(h => h.alunoId === aluno.id && h.status === 'F').length;
             this.tela = 'dadosAluno';
+        },
+        async abrirEdicaoProfessor(professor) {
+            this.professorEditando = { ...professor };
+            this.tela = 'editarProfessor';
+        },
+        async salvarEdicaoProfessor() {
+            const index = this.professores.findIndex(p => p.email === this.professorEditando.email);
+            if (index !== -1) {
+                // Não permite trocar o email que é a "chave" de login por enquanto
+                this.professores[index].nome = this.professorEditando.nome;
+                this.professores[index].senha = this.professorEditando.senha;
+                this.professores[index].telefone = this.professorEditando.telefone;
+                this.professores[index].matricula = this.professorEditando.matricula;
+                this.professores[index].nascimento = this.professorEditando.nascimento;
+                this.salvarNoLocalStorage();
+            }
+            this.tela = 'professoresExistentes';
+        },
+        async removerProfessor() {
+            if (this.professorEditando.role === 'admin') {
+                alert("Não é possível excluir o administrador principal.");
+                return;
+            }
+            if (confirm("Excluir conta deste professor permanentemente?")) {
+                this.professores = this.professores.filter(p => p.email !== this.professorEditando.email);
+                this.salvarNoLocalStorage();
+                this.tela = 'professoresExistentes';
+            }
+        },
+        verDadosProfessor(professor) {
+            this.professorPerfil = professor;
+            this.tela = 'dadosProfessor';
         }
     },
     mounted() {

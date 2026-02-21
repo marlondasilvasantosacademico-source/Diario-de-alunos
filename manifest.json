@@ -1,0 +1,16 @@
+{
+    "name": "Diário de Classe",
+    "short_name": "Diário",
+    "description": "Aplicativo de chamadas e gestão de alunos para docentes.",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#3f51b5",
+    "icons": [
+      {
+        "src": "https://cdn-icons-png.flaticon.com/512/3233/3233483.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }

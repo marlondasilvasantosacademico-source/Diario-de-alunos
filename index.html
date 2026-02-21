@@ -5,10 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diário de Classe</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3730A3">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3233/3233483.png">
+
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="module" src="app.js"></script>
+    <script src="app.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('ServiceWorker registrado', reg))
+                    .catch(err => console.log('ServiceWorker erro: ', err));
+            });
+        }
+    </script>
 </head>
 
 <body class="bg-slate-100 font-sans text-slate-900">
@@ -58,9 +72,9 @@
                 class="w-full p-6 bg-amber-50 border-2 border-amber-100 rounded-3xl flex items-center gap-4">
                 <span class="text-3xl">🔍</span> <span class="font-black uppercase text-xs">Consultar Relatórios</span>
             </button>
-            <button @click="tela = 'cadastrarProfessor'"
+            <button v-if="usuarioLogado?.role === 'admin'" @click="tela = 'gestaoProfessores'"
                 class="w-full p-6 bg-rose-50 border-2 border-rose-100 rounded-3xl flex items-center gap-4">
-                <span class="text-3xl">👩‍🏫</span> <span class="font-black uppercase text-xs">Cadastrar Docentes</span>
+                <span class="text-3xl">👩‍🏫</span> <span class="font-black uppercase text-xs">Gestão de Docentes</span>
             </button>
         </main>
 
@@ -113,8 +127,18 @@
             </div>
         </main>
 
+        <!-- GESTÃO PROFESSORES -->
+        <main v-if="tela === 'gestaoProfessores' && usuarioLogado?.role === 'admin'"
+            class="p-6 grow flex flex-col justify-center gap-4">
+            <button @click="tela = 'cadastrarProfessor'"
+                class="w-full p-8 bg-rose-600 text-white rounded-3xl font-black uppercase">➕ Novo Docente</button>
+            <button @click="tela = 'professoresExistentes'"
+                class="w-full p-8 bg-white border-4 border-rose-600 text-rose-600 rounded-3xl font-black uppercase">👩‍🏫
+                Ver Lista</button>
+        </main>
+
         <!-- CADASTRAR PROFESSOR -->
-        <main v-if="tela === 'cadastrarProfessor'" class="p-6">
+        <main v-if="tela === 'cadastrarProfessor' && usuarioLogado?.role === 'admin'" class="p-6">
             <div v-if="!cadastroProfessorSucesso"
                 class="bg-rose-50 p-8 rounded-[2rem] border-2 border-rose-100 text-left">
                 <h3 class="font-black text-rose-900 mb-6 uppercase text-center">Novo Docente</h3>
@@ -146,7 +170,14 @@
 
                 <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Telefone com DDD</label>
                 <input type="tel" v-model="novoProfessorTelefone" placeholder="(XX) XXXXX-XXXX"
-                    class="w-full p-4 rounded-xl mb-6 border font-bold">
+                    class="w-full p-4 rounded-xl mb-4 border font-bold">
+
+                <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Cargo / Nível de Acesso</label>
+                <select v-model="novoProfessorRole"
+                    class="w-full p-4 rounded-xl mb-6 border font-bold bg-white outline-none">
+                    <option value="professor">Professor(a) (Padrão)</option>
+                    <option value="admin">Administrador(a) (Acesso Total)</option>
+                </select>
 
                 <button @click="cadastrarProfessor"
                     class="w-full bg-rose-600 text-white py-4 rounded-xl font-black">CADASTRAR</button>
@@ -156,8 +187,91 @@
                 <button @click="cadastroProfessorSucesso = false"
                     class="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase text-xs">Cadastrar
                     Outro</button>
-                <button @click="tela = 'home'" class="w-full text-emerald-600 font-bold text-xs uppercase">Voltar ao
-                    Início</button>
+                <button @click="tela = 'gestaoProfessores'"
+                    class="w-full text-emerald-600 font-bold text-xs uppercase">Voltar à Gestão</button>
+            </div>
+        </main>
+
+        <main v-if="tela === 'professoresExistentes' && usuarioLogado?.role === 'admin'" class="p-4 space-y-2">
+            <div v-for="prof in professores" :key="prof.email" class="p-4 bg-white border rounded-2xl shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <div>
+                        <p class="font-bold text-sm">{{ prof.nome }}</p>
+                        <p class="text-[10px] text-gray-400 font-bold">{{ prof.email }}</p>
+                    </div>
+                    <span v-if="prof.role === 'admin'"
+                        class="bg-slate-800 text-white text-[8px] px-2 py-1 rounded-full uppercase font-black">Admin</span>
+                </div>
+                <div class="flex gap-2 mt-2 border-t pt-2">
+                    <button @click="abrirEdicaoProfessor(prof)"
+                        class="bg-rose-100 text-rose-700 w-full py-2 rounded-lg text-[10px] font-black uppercase">Editar</button>
+                    <button @click="verDadosProfessor(prof)"
+                        class="bg-indigo-100 text-indigo-700 w-full py-2 rounded-lg text-[10px] font-black uppercase">Dados</button>
+                </div>
+            </div>
+        </main>
+
+        <main v-if="tela === 'editarProfessor' && usuarioLogado?.role === 'admin'" class="p-6">
+            <div class="bg-rose-50 p-8 rounded-3xl border-2 border-rose-100 text-left">
+                <h3 class="font-black text-rose-900 mb-6 uppercase text-center">Editar Docente</h3>
+
+                <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Nome Completo</label>
+                <input type="text" v-model="professorEditando.nome" class="w-full p-4 rounded-xl mb-3 border font-bold">
+
+                <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Senha do Professor</label>
+                <input type="text" v-model="professorEditando.senha"
+                    class="w-full p-4 rounded-xl mb-3 border font-bold text-rose-600">
+
+                <div class="flex gap-2 mb-3">
+                    <div class="w-1/2">
+                        <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Nascimento</label>
+                        <input type="date" v-model="professorEditando.nascimento"
+                            class="w-full p-4 rounded-xl border font-bold text-xs">
+                    </div>
+                    <div class="w-1/2">
+                        <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Matrícula</label>
+                        <input type="text" v-model="professorEditando.matricula"
+                            class="w-full p-4 rounded-xl border font-bold text-xs">
+                    </div>
+                </div>
+
+                <label class="text-[10px] font-bold text-rose-800 uppercase ml-2">Telefone</label>
+                <input type="tel" v-model="professorEditando.telefone"
+                    class="w-full p-4 rounded-xl mb-6 border font-bold">
+
+                <button @click="salvarEdicaoProfessor"
+                    class="w-full bg-rose-600 text-white py-4 rounded-xl font-black uppercase">Atualizar Dados</button>
+                <button @click="removerProfessor"
+                    class="w-full mt-6 text-rose-600 font-bold text-[10px] uppercase underline italic text-center">Desligar
+                    Docente (Excluir)</button>
+            </div>
+        </main>
+
+        <main v-if="tela === 'dadosProfessor' && usuarioLogado?.role === 'admin'" class="p-6">
+            <div class="bg-indigo-900 text-white p-8 rounded-[3rem] shadow-xl text-center mb-6">
+                <div
+                    class="w-20 h-20 bg-indigo-800 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">
+                    👩‍🏫</div>
+                <h2 class="text-xl font-black mb-1 uppercase">{{ professorPerfil?.nome }}</h2>
+                <p class="text-indigo-300 text-[10px] uppercase font-bold">{{ professorPerfil?.email }}</p>
+                <span v-if="professorPerfil?.role === 'admin'"
+                    class="inline-block mt-2 bg-rose-500 text-white text-[8px] px-3 py-1 rounded-full uppercase font-black">Administrador(a)</span>
+            </div>
+
+            <div class="bg-white border rounded-3xl p-6 space-y-4">
+                <div>
+                    <p class="text-[9px] text-slate-400 font-black uppercase">Matrícula</p>
+                    <p class="font-bold text-slate-700">{{ professorPerfil?.matricula || 'Não informada' }}</p>
+                </div>
+                <div>
+                    <p class="text-[9px] text-slate-400 font-black uppercase">Telefone de Contato</p>
+                    <p class="font-bold text-slate-700">{{ professorPerfil?.telefone || 'Não informado' }}</p>
+                </div>
+                <div>
+                    <p class="text-[9px] text-slate-400 font-black uppercase">Data de Nascimento</p>
+                    <p class="font-bold text-slate-700">{{ formatarData(professorPerfil?.nascimento) || 'Não informada'
+                        }}</p>
+                </div>
             </div>
         </main>
 
